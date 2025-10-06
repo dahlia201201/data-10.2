@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>서울 공공체육시설과 비만율의 상관관계</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html,body{height:100%;margin:0;font-family:'Noto Sans KR',sans-serif;background:#111;color:#eee}
+    .controls{padding:16px 20px;background:#222;border-bottom:1px solid #333;display:flex;align-items:center;gap:12px}
+    h1{margin:0;font-size:18px;color:#66ccff}
+    #map{height:90vh;width:100%;filter:brightness(1.1) contrast(1.1)}
+    .legend-box{background:#222;padding:8px;border-radius:6px;box-shadow:0 1px 6px rgba(255,255,255,0.1);font-size:13px;color:#eee}
+    .label{pointer-events:none;text-align:center;font-weight:700;font-size:12px;color:#fff;text-shadow:0 0 4px rgba(0,0,0,0.5)}
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <div style="flex:1">
+      <h1>서울 공공체육시설과 비만율의 상관관계</h1>
+      <div style="font-size:13px;color:#aaa;margin-top:6px">원 크기 = 공공체육시설 수 (많을수록 큼) · 원 색 = 비만율 (파랑=낮음 → 빨강=높음)</div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const map = L.map('map', {zoomControl:false}).setView([37.5665,126.9780], 11);
+      L.control.zoom({position:'bottomright'}).addTo(map);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'© OpenStreetMap, © CartoDB'}).addTo(map);
+
+      const layerGroup = L.layerGroup().addTo(map);
+
+      const districts = {
+        '강남구':[37.5172,127.0473],'강동구':[37.5301,127.1238],'강북구':[37.6398,127.0255],'강서구':[37.5509,126.8495],
+        '관악구':[37.4784,126.9516],'광진구':[37.5385,127.0823],'구로구':[37.4955,126.8876],'금천구':[37.4569,126.8958],
+        '노원구':[37.6543,127.0565],'도봉구':[37.6688,127.0471],'동대문구':[37.5744,127.0396],'동작구':[37.5124,126.9393],
+        '마포구':[37.5638,126.9084],'서대문구':[37.5791,126.9368],'서초구':[37.4836,127.0327],'성동구':[37.5633,127.0369],
+        '성북구':[37.5894,127.0167],'송파구':[37.5145,127.1058],'양천구':[37.5169,126.8664],'영등포구':[37.5263,126.8960],
+        '용산구':[37.5326,126.9905],'은평구':[37.6027,126.9291],'종로구':[37.5730,126.9794],'중구':[37.5610,126.9997],
+        '중랑구':[37.6066,127.0928]
+      };
+
+      const bimanData = [
+        {자치구별:'종로구',공공체육시설수:41,비만율:27},
+        {자치구별:'중구',공공체육시설수:32,비만율:27},
+        {자치구별:'용산구',공공체육시설수:39,비만율:25},
+        {자치구별:'성동구',공공체육시설수:113,비만율:29},
+        {자치구별:'광진구',공공체육시설수:115,비만율:32},
+        {자치구별:'동대문구',공공체육시설수:62,비만율:35},
+        {자치구별:'중랑구',공공체육시설수:137,비만율:34},
+        {자치구별:'성북구',공공체육시설수:161,비만율:32},
+        {자치구별:'강북구',공공체육시설수:148,비만율:37},
+        {자치구별:'도봉구',공공체육시설수:101,비만율:30},
+        {자치구별:'노원구',공공체육시설수:232,비만율:31},
+        {자치구별:'은평구',공공체육시설수:58,비만율:31},
+        {자치구별:'서대문구',공공체육시설수:142,비만율:31},
+        {자치구별:'마포구',공공체육시설수:130,비만율:34},
+        {자치구별:'양천구',공공체육시설수:162,비만율:31},
+        {자치구별:'강서구',공공체육시설수:170,비만율:31},
+        {자치구별:'구로구',공공체육시설수:166,비만율:37},
+        {자치구별:'금천구',공공체육시설수:83,비만율:36},
+        {자치구별:'영등포구',공공체육시설수:115,비만율:29},
+        {자치구별:'동작구',공공체육시설수:127,비만율:33},
+        {자치구별:'관악구',공공체육시설수:161,비만율:33},
+        {자치구별:'서초구',공공체육시설수:195,비만율:26},
+        {자치구별:'강남구',공공체육시설수:296,비만율:25},
+        {자치구별:'송파구',공공체육시설수:154,비만율:28},
+        {자치구별:'강동구',공공체육시설수:64,비만율:30}
+      ];
+
+      function getColor(rate){
+        if (rate == null || isNaN(rate)) return '#6ea8ff';
+        const min = 20, max = 37;
+        const t = Math.min(1, Math.max(0, (rate - min) / (max - min)));
+        const r = Math.round(255 * t);
+        const g = Math.round(100 * (1 - t));
+        const b = Math.round(255 * (1 - t));
+        return `rgb(${r},${g},${b})`;
+      }
+
+      function getRadius(count){
+        const base = Math.max(1, count);
+        return Math.max(6, Math.sqrt(base) * 2.8);
+      }
+
+      function drawMap(data){
+        layerGroup.clearLayers();
+        const latlngs = [];
+        data.forEach(item => {
+          const gu = item['자치구별'];
+          const count = Number(item['공공체육시설수']);
+          const obesity = Number(item['비만율']);
+          const pos = districts[gu];
+          if (!pos) return;
+
+          const color = getColor(obesity);
+          const radius = getRadius(count);
+
+          const circle = L.circleMarker(pos, {
+            radius,
+            fillColor: color,
+            color: '#fff',
+            weight: 0.5,
+            fillOpacity: 0.85
+          }).bindTooltip(`<b>${gu}</b><br>시설 수: ${count}<br>비만율: ${obesity}%`);
+          circle.addTo(layerGroup);
+
+          const label = L.divIcon({className:'label', html:`<div style='color:#fff;text-shadow:0 0 3px rgba(0,0,0,0.7)'>${count}</div>`});
+          L.marker(pos,{icon:label,interactive:false}).addTo(layerGroup);
+
+          latlngs.push(L.latLng(pos[0], pos[1]));
+        });
+        if (latlngs.length) map.fitBounds(L.latLngBounds(latlngs).pad(0.1));
+      }
+
+      function drawLegend(){
+        const legend = L.control({position: 'topright'});
+        legend.onAdd = function(){
+          const div = L.DomUtil.create('div', 'legend-box');
+          div.innerHTML = `<div style="font-weight:700;margin-bottom:6px">범례</div>
+            <div style='display:flex;gap:8px;align-items:center'><div style='width:40px;height:12px;background:linear-gradient(to right,#6ea8ff,#f02c2c);border-radius:4px'></div><div>비만율 (파랑=낮음 → 빨강=높음)</div></div>
+            <div style='margin-top:8px'>원 크기 = 시설 수 (라벨은 개수)</div>`;
+          return div;
+        };
+        legend.addTo(map);
+      }
+
+      drawLegend();
+      drawMap(bimanData);
+    });
+  </script>
+</body>
+</html>
